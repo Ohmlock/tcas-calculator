@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบคำนวณคะแนน TCAS (v 1.0.0)</title>
+    <title>ระบบคำนวณคะแนน TCAS (v 1.1.0 - Smart Edition)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     
     <style>
@@ -38,6 +42,14 @@
         }
         
         .badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #3f3f46; background: #18181b; color: #a1a1aa; margin-right: 4px; margin-bottom: 4px; display: inline-block; }
+        
+        /* Analysis Table Style (New) */
+        details > summary { list-style: none; cursor: pointer; color: #fbbf24; font-size: 0.8rem; font-weight: 600; padding: 8px; border-radius: 6px; background: rgba(251, 191, 36, 0.1); text-align: center; margin-top: 10px; border: 1px solid rgba(251, 191, 36, 0.2); transition: 0.2s; }
+        details > summary:hover { background: rgba(251, 191, 36, 0.2); }
+        .analysis-table { width: 100%; font-size: 0.75rem; border-collapse: separate; border-spacing: 0; margin-top: 8px; }
+        .analysis-table th { color: #a1a1aa; padding: 6px; border-bottom: 1px solid #333; font-weight: 600; text-align: center; background: #27272a; }
+        .analysis-table td { padding: 6px; border-bottom: 1px solid #27272a; text-align: center; font-family: 'JetBrains Mono'; color: #d4d4d8; }
+        .analysis-table tr:last-child td { border-bottom: none; }
     </style>
 </head>
 <body class="max-w-6xl mx-auto">
@@ -46,7 +58,7 @@
         <div class="w-full md:w-auto">
             <h1 class="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center flex-wrap gap-2">
                 คำนวณ <span class="text-green-500">TCAS</span> 
-                <span class="text-[10px] border border-zinc-700 text-zinc-500 px-2 py-0.5 rounded align-middle whitespace-nowrap">Version v 1.0.0</span>
+                <span class="text-[10px] border border-zinc-700 text-zinc-500 px-2 py-0.5 rounded align-middle whitespace-nowrap">v 1.1.0 Smart</span>
             </h1>
             <div class="flex flex-wrap gap-3 items-center">
                 <div id="statusBadge" class="flex items-center gap-2 text-xs text-zinc-500">
@@ -76,4 +88,528 @@
             <div class="glass-header text-yellow-500"><i class="fa-solid fa-star"></i> GPAX & TGAT</div>
             <div class="p-4 md:p-5 flex flex-col gap-4 h-full justify-start">
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="font-bold text-white">GPAX (เกรด)</label><input type="number" id="GPAX" placeholder="0
+                    <div><label class="font-bold text-white">GPAX (เกรด)</label><input type="number" id="GPAX" placeholder="0.00-4.00" class="text-lg font-mono text-yellow-400 border-yellow-500/30 bg-yellow-500/5 focus:bg-black"></div>
+                    <div><label class="font-bold text-white">TGAT รวม</label><input type="number" id="TGAT" placeholder="Auto" class="text-lg font-mono text-green-400 border-green-500/30 bg-green-500/5 focus:bg-black"></div>
+                </div>
+                <div class="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800">
+                    <div class="text-[10px] text-zinc-500 mb-2 flex items-center gap-1"><i class="fa-solid fa-calculator"></i> คะแนนย่อย (Auto Calc)</div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-[10px] text-zinc-500 text-center block whitespace-normal leading-tight">
+                                <span class="font-bold text-zinc-300">TGAT1</span> สื่อสาร
+                            </label>
+                            <input type="number" id="TGAT1" class="calc-trigger text-center text-sm" placeholder="อังกฤษ">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-zinc-500 text-center block whitespace-normal leading-tight">
+                                <span class="font-bold text-zinc-300">TGAT2</span> เหตุผล
+                            </label>
+                            <input type="number" id="TGAT2" class="calc-trigger text-center text-sm" placeholder="ตรรกะ">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-zinc-500 text-center block whitespace-normal leading-tight">
+                                <span class="font-bold text-zinc-300">TGAT3</span> สมรรถนะ
+                            </label>
+                            <input type="number" id="TGAT3" class="calc-trigger text-center text-sm" placeholder="ทำงาน">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass border-l-4 border-l-blue-500">
+            <div class="glass-header text-blue-400"><i class="fa-solid fa-flask"></i> A-Level วิทย์-คณิต</div>
+            <div class="grid-inputs">
+                <div><label>คณิต 1 (เพิ่ม)</label><input type="number" id="Math1"></div>
+                <div><label>คณิต 2 (พื้น)</label><input type="number" id="Math2"></div>
+                <div><label>ฟิสิกส์</label><input type="number" id="Phy"></div>
+                <div><label>เคมี</label><input type="number" id="Chem"></div>
+                <div><label>ชีวะ</label><input type="number" id="Bio"></div>
+                <div><label>วิทย์ประยุกต์</label><input type="number" id="Sci"></div>
+            </div>
+        </div>
+
+        <div class="glass border-l-4 border-l-pink-500">
+            <div class="glass-header text-pink-400"><i class="fa-solid fa-shapes"></i> TPAT ความถนัด</div>
+            <div class="p-4 md:p-5 flex flex-col gap-4">
+                <div class="grid grid-cols-3 gap-2">
+                    <div><label>TPAT3 (วิศวะ)</label><input type="number" id="TPAT3" class="text-center px-1"></div>
+                    <div><label>TPAT4 (สถาปัต)</label><input type="number" id="TPAT4" class="text-center px-1"></div>
+                    <div><label>TPAT5 (ครุ)</label><input type="number" id="TPAT5" class="text-center px-1"></div>
+                </div>
+                <div class="border-t border-zinc-800 pt-3 mt-auto">
+                    <label class="mb-2 text-xs text-pink-300">TPAT 1 (วิชาเฉพาะแพทย์)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <input type="number" id="TPAT11" placeholder="Part 1" class="text-center text-sm px-1">
+                        <input type="number" id="TPAT12" placeholder="Part 2" class="text-center text-sm px-1">
+                        <input type="number" id="TPAT13" placeholder="Part 3" class="text-center text-sm px-1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass border-l-4 border-l-orange-500">
+            <div class="glass-header text-orange-400"><i class="fa-solid fa-book"></i> ไทย - สังคม - Eng</div>
+            <div class="p-4 md:p-5">
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div><label>ภาษาไทย</label><input type="number" id="Thai"></div>
+                    <div><label>สังคม</label><input type="number" id="Soc"></div>
+                </div>
+                <div class="pt-1"><label>ภาษาอังกฤษ</label><input type="number" id="Eng" class="border-orange-500/30"></div>
+            </div>
+        </div>
+
+        <div class="glass col-span-1 lg:col-span-2 border-l-4 border-l-purple-500">
+            <div class="glass-header text-purple-400 justify-between">
+                <div><i class="fa-solid fa-language"></i> ภาษาต่างประเทศ (PAT 7)</div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-4 md:p-5">
+                <div><label>ฝรั่งเศส</label><input type="number" id="Fre"></div>
+                <div><label>เยอรมัน</label><input type="number" id="Ger"></div>
+                <div><label>ญี่ปุ่น</label><input type="number" id="Jap"></div>
+                <div><label>จีน</label><input type="number" id="Chi"></div>
+                <div><label>เกาหลี</label><input type="number" id="Kor"></div>
+                <div><label>บาลี</label><input type="number" id="Pali"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass p-3 md:p-4 sticky top-0 z-50 shadow-2xl shadow-black/80 border-green-500/30 mb-8 backdrop-blur-xl rounded-none md:rounded-xl -mx-3 md:mx-0 border-x-0 md:border-x">
+        <div class="flex flex-col md:flex-row gap-3">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"></i>
+                <input type="text" id="smartSearch" class="pl-9 h-10 md:h-12 bg-black/50 border-zinc-700 focus:border-green-500 text-base md:text-lg w-full" placeholder="ค้นหา: เช่น หมอ มธ, วิศวะ จุฬา, อยากรวย..." onkeyup="filterResults()">
+            </div>
+            <button onclick="calculate()" class="btn-main whitespace-nowrap px-6 text-base md:text-lg h-10 md:h-12 flex items-center justify-center gap-2 w-full md:w-auto">
+                <i class="fa-solid fa-calculator"></i> <span class="md:hidden">คำนวณ</span><span class="hidden md:inline">คำนวณโอกาสติด</span>
+            </button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+            <select id="filterType" onchange="filterResults()" class="h-9 text-xs bg-zinc-900 border-zinc-700 rounded">
+                <option value="all">ทุกสถาบัน</option>
+                <option value="รัฐบาล">รัฐบาล</option>
+                <option value="เอกชน">เอกชน</option>
+                <option value="ราชภัฏ">ราชภัฏ</option>
+                <option value="ราชมงคล">ราชมงคล</option>
+            </select>
+            <select id="filterGroup" onchange="filterResults()" class="h-9 text-xs bg-zinc-900 border-zinc-700 rounded">
+                <option value="all">ทุกกลุ่มคณะ</option>
+                <option value="สายแพทย์/สุขภาพ">แพทย์/สุขภาพ</option>
+                <option value="วิศวะ/เทคโน/สถาปัตย์">วิศวะ/IT</option>
+                <option value="บริหาร/ศิลป์/โรงแรม">บริหาร/ศิลป์</option>
+            </select>
+             <select id="sortFilter" onchange="filterResults()" class="h-9 text-xs bg-zinc-900 border-zinc-700 col-span-2 md:col-span-2 rounded">
+                <option value="default">เรียง: แนะนำ</option>
+                <option value="chance">เรียง: โอกาสติดมากสุด</option>
+                <option value="score_asc">เรียง: คะแนนต่ำสุด (น้อยไปมาก)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="resultsArea" class="space-y-3 md:space-y-4"></div>
+
+    <script>
+        // ====================================================
+        // 0. SMART SEARCH KNOWLEDGE BASE (NEW!)
+        // ====================================================
+        const searchSynonyms = {
+            'หมอ': ['แพทย', 'med'], 'หมอฟัน': ['ทันต', 'dent'], 'หมอยา': ['เภสัช', 'pharm'],
+            'พยาบาล': ['พยาบาล', 'nurse'], 'หมอสัตว์': ['สัตวแพทย์', 'vet'], 'รักษาสัตว์': ['สัตวแพทย์', 'vet'],
+            'ผ่าตัด': ['ศัลย', 'surg'], 'แล็บ': ['เทคนิคการแพทย์', 'สหเวช', 'lab'], 'xray': ['รังสี'],
+            'กายภาพ': ['กายภาพบำบัด', 'rehab'], 'จิตแพทย์': ['แพทย', 'จิตเวช'],
+            'คอม': ['คอมพิวเตอร์', 'computer', 'it', 'soft', 'data', 'สารสนเทศ'],
+            'เขียนโปรแกรม': ['software', 'computer', 'it'], 'โปรแกรมเมอร์': ['software', 'computer', 'it'],
+            'สร้างบ้าน': ['โยธา', 'สถาปัต', 'civil'], 'ไฟฟ้า': ['ไฟฟ้า', 'electro'],
+            'เครื่องยนต์': ['เครื่องกล', 'ยานยนต์', 'mech'], 'หุ่นยนต์': ['robot', 'mechatronic'],
+            'ai': ['ปัญญาประดิษฐ์', 'data'], 'ออกแบบ': ['สถาปัต', 'design', 'create', 'นิเทศ'],
+            'กราฟิก': ['design', 'media', 'art', 'multimedia'],
+            'ปลูกต้นไม้': ['เกษตร', 'agri'], 'ทำอาหาร': ['food', 'nutrition', 'คหกรรม', 'chef'],
+            'เชฟ': ['คหกรรม', 'culinary'], 'นักวิทย์': ['วิทยาศาสตร์', 'sci'], 'สัตว์': ['สัตว', 'animal'],
+            'อยากรวย': ['บริหาร', 'เศรษฐ', 'การเงิน', 'ลงทุน'],
+            'เจ้าของธุรกิจ': ['ผู้ประกอบการ', 'บริหาร', 'business'], 'ตัวเลข': ['บัญชี', 'account', 'math', 'stat'],
+            'หุ้น': ['การเงิน', 'finance', 'econ'], 'ดารา': ['นิเทศ', 'การแสดง', 'film'],
+            'ภาษา': ['อักษร', 'มนุษย', 'ศิลปศาสตร์', 'lang'],
+            'ล่าม': ['อังกฤษ', 'จีน', 'ญี่ปุ่น', 'ฝรั่งเศส'], 'แอร์': ['การบิน', 'aviation', 'airline', 'hospitality'],
+            'สจ๊วต': ['การบิน', 'aviation'], 'โรงแรม': ['hotel', 'tourism', 'hospitality'],
+            'ไกด์': ['ท่องเที่ยว', 'tourism'], 'ครู': ['ครุ', 'ศึกษาศาสตร์', 'education', 'teach'],
+            'สอนหนังสือ': ['ครุ', 'ศึกษาศาสตร์'], 'กฎหมาย': ['นิติ', 'law'], 'ทนาย': ['นิติ', 'law'],
+            'ตำรวจ': ['รัฐศาสตร์', 'รัฐประศาสนศาสตร์'], 'นายก': ['รัฐศาสตร์', 'pol']
+        };
+
+        const uniAliases = {
+            'มธ': 'ธรรมศาสตร์', 'tu': 'ธรรมศาสตร์', 'จุฬา': 'จุฬาลงกรณ์', 'cu': 'จุฬาลงกรณ์',
+            'มก': 'เกษตรศาสตร์', 'ku': 'เกษตรศาสตร์', 'มข': 'ขอนแก่น', 'kku': 'ขอนแก่น',
+            'มช': 'เชียงใหม่', 'cmu': 'เชียงใหม่', 'มศว': 'ศรีนครินทรวิโรฒ', 'swu': 'ศรีนครินทรวิโรฒ',
+            'ลาดกระบัง': 'พระจอมเกล้าเจ้าคุณทหารลาดกระบัง', 'kmitl': 'พระจอมเกล้าเจ้าคุณทหารลาดกระบัง',
+            'บางมด': 'พระจอมเกล้าธนบุรี', 'kmutt': 'พระจอมเกล้าธนบุรี',
+            'พระนครเหนือ': 'พระจอมเกล้าพระนครเหนือ', 'kmutnb': 'พระจอมเกล้าพระนครเหนือ',
+            'ม.อ.': 'สงขลานครินทร์', 'psu': 'สงขลานครินทร์', 'มฟล': 'แม่ฟ้าหลวง', 'mfu': 'แม่ฟ้าหลวง',
+            'มบูรพา': 'บูรพา', 'buu': 'บูรพา'
+        };
+
+        // ฟังก์ชันช่วยแตก Keyword (NEW!)
+        function getExpandedKeywords(query) {
+            if (!query) return [];
+            const tokens = query.toLowerCase().split(/\s+/).filter(t => t);
+            return tokens.map(token => {
+                if (uniAliases[token]) return [uniAliases[token]];
+                if (searchSynonyms[token]) return searchSynonyms[token];
+                return [token];
+            });
+        }
+
+        // ====================================================
+        // 1. CONFIG & FIREBASE
+        // ====================================================
+        const SHEET_ID = '1Aaj3gYyb0MKBYYdBm3OAN6qTtSuEIX43oh6DqrI_Zyk'; 
+        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYMLsoiK9VV1yOqHFQgCPOjt96VNZecGI",
+            authDomain: "tcas-calculator.firebaseapp.com",
+            projectId: "tcas-calculator",
+            storageBucket: "tcas-calculator.firebasestorage.app",
+            messagingSenderId: "748158856876",
+            appId: "1:748158856876:web:618e1c16386fb562747909",
+            measurementId: "G-TBV32ELDKR"
+        };
+
+        let db = [];
+        let isCalculated = false;
+        let firestoreDB;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            firestoreDB = firebase.firestore();
+            
+            const countRef = firestoreDB.collection("website_stats").doc("visitors");
+            countRef.get().then((doc) => {
+                if (!doc.exists) countRef.set({ count: 1 });
+                else countRef.update({ count: firebase.firestore.FieldValue.increment(1) });
+            });
+            
+            countRef.onSnapshot((doc) => {
+                if (doc.exists) document.getElementById('visitorCountDisplay').innerText = doc.data().count.toLocaleString();
+            });
+
+        } catch (e) {
+            console.error("Firebase Error:", e);
+            document.getElementById('visitorCountDisplay').innerText = "Offline";
+        }
+
+        // ====================================================
+        // 2. MAIN LOGIC
+        // ====================================================
+        
+        async function init() {
+            try {
+                const res = await fetch(SHEET_URL);
+                const text = await res.text();
+                const json = JSON.parse(text.substr(47).slice(0, -2));
+                const raw = parseMasterGoogleSheet(json);
+                db = enrichData(raw); 
+                
+                document.getElementById('statusBadge').innerHTML = `<span class="text-green-500">●</span> <span class="hidden md:inline">พร้อมใช้งาน</span>`;
+                filterResults();
+            } catch(e) {
+                console.error(e);
+                document.getElementById('statusBadge').innerHTML = `<span class="text-red-500">● Offline</span>`;
+            }
+            document.querySelectorAll('.calc-trigger').forEach(el => el.addEventListener('input', autoCalcTGAT));
+        }
+
+        function downloadTemplate() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
+            window.open(url, '_blank');
+        }
+
+        function handleFileUpload(input) {
+             const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            if(file.name.endsWith('.xlsx')) {
+                reader.readAsArrayBuffer(file);
+                reader.onload = e => {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+                    const processed = parseExcelFixedColumns(rows);
+                    if(processed.length === 0) return alert("รูปแบบไฟล์ไม่ถูกต้อง หรือไม่มีข้อมูลในแถว");
+                    db = enrichData(processed);
+                    document.getElementById('statusBadge').innerHTML = `<span class="text-blue-400">📂 ไฟล์ส่วนตัว</span>`;
+                    filterResults();
+                };
+            }
+        }
+
+        // --- PARSING LOGIC ---
+        function parseMasterGoogleSheet(json) {
+            return json.table.rows.map((r, i) => {
+                const v = (idx) => (r.c[idx]?.v || 0);
+                const t = (idx) => (r.c[idx]?.v || "");
+                return extractDataFromRow(i, v, t);
+            }).filter(x => x.faculty && x.faculty !== "");
+        }
+
+        function parseExcelFixedColumns(rows) {
+            return rows.slice(1).map((r, i) => {
+                const v = (idx) => {
+                    let val = parseFloat(r[idx]);
+                    return isNaN(val) ? 0 : val;
+                };
+                const t = (idx) => (r[idx] ? String(r[idx]) : "");
+                return extractDataFromRow(i, v, t);
+            }).filter(item => item.faculty && item.faculty !== "");
+        }
+
+        function extractDataFromRow(id, getValue, getText) {
+            let weights = {};
+            const addW = (k, idx) => { 
+                let val = getValue(idx);
+                if(val > 0) weights[k] = val; 
+            };
+            
+            // Fixed Column Index (Mapping)
+            addW("GPAX", 3);    addW("TGAT", 4);    addW("TGAT1", 5);   addW("TGAT2", 6);
+            addW("TGAT3", 7);   addW("TPAT11", 8);  addW("TPAT12", 9);  addW("TPAT13", 10); 
+            addW("TPAT4", 14);  addW("TPAT5", 15);  addW("TPAT3", 16);  addW("Math1", 17); 
+            addW("Math2", 18);  addW("Phy", 19);    addW("Chem", 20);   addW("Bio", 21); 
+            addW("Sci", 22);    addW("Eng", 23);    addW("Thai", 24);   addW("Soc", 25);
+            addW("Fre", 26);    addW("Ger", 27);    addW("Jap", 28);    addW("Chi", 30); 
+            
+            return { 
+                id: id, 
+                uni: getText(0),       
+                faculty: getText(1),   
+                minScore: getValue(33),
+                logo: getText(36),     
+                weights: weights 
+            };
+        }
+
+        // --- HELPERS ---
+        function enrichData(data) {
+            return data.map(item => ({ 
+                ...item, 
+                tags: { type: getUniType(item.uni||""), group: getFacultyGroup(item.faculty||"") } 
+            }));
+        }
+
+        function getUniType(uniName) {
+            const name = uniName.toLowerCase();
+            if (name.match(/(ราชภัฏ|rajabhat|mcru|cmru)/)) return 'ราชภัฏ';
+            if (name.match(/(ราชมงคล|rmut|เทคนิคกรุงเทพ|เทคโนโลยีปทุมวัน|จิตรลดา)/)) return 'ราชมงคล';
+            const privateUnis = ['รังสิต', 'rsu', 'กรุงเทพ', 'bu', 'หอการค้า', 'utcc', 'ศรีปทุม', 'spu', 'ธุรกิจบัณฑิตย์', 'dpu', 'อัสสัมชัญ', 'au', 'abac', 'หัวเฉียว', 'hcu', 'เกษมบัณฑิต', 'kbu', 'มหานคร', 'mut', 'สยาม', 'พายัพ', 'วงษ์ชวลิตกุล', 'หาดใหญ่', 'อีสเทิร์น', 'เอเชียอาคเนย์', 'ตาปี', 'เซนต์จอห์น', 'รัตนบัณฑิต', 'เวสเทิร์น', 'north', 'stamford'];
+            if (privateUnis.some(kw => name.includes(kw))) return 'เอกชน';
+            return 'รัฐบาล';
+        }
+
+        function getFacultyGroup(facultyName) {
+            const name = facultyName.toLowerCase();
+            if (name.match(/(แพทย|med|ศัลย|surg|พยาบาล|nurs|ทันต|dent|เภสัช|pharm|สัตวแพทย์|vet|สหเวช|allied|กายภาพ|physical|เทคนิคการแพทย์|lab|รังสี|x-ray|ทัศนมาตร|optom|สาธารณสุข|pub.*health|จิตวิทยาคลินิก)/) && !name.includes('สัตวศาสตร์')) return 'สายแพทย์/สุขภาพ';
+            if (name.match(/(วิศว|engin|คอมพิวเตอร์|comp|เทคโนโลยี|tech|สารสนเทศ|info|it|ict|ดิจิทัล|digit|ซอฟต์แวร์|soft|นวัตกรรม|innov|อิเล็ก|elec|สถาปัต|arch|ออกแบบ|design|ผังเมือง|urban|data|ai|robot|หุ่นยนต์|aerospace|อากาศยาน)/)) return 'วิศวะ/เทคโน/สถาปัตย์';
+            if (name.match(/(วิทยาศาสตร์|science|sci|เคมี|chem|ชีว|bio|ฟิสิกส์|phys|คณิต|math|สถิติ|stat|เกษตร|agri|ประมง|fisher|วนศาสตร์|forest|สัตวศาสตร์|animal|อาหาร|food|ทรัพยากร|resource|สิ่งแวดล้อม|environ|กีฬา|sport|พลศึกษา|ple)/) && !name.match(/(รัฐศาสตร์|สังคม|มนุษย|จัดการ)/)) return 'วิทย์/เกษตร/อาหาร';
+            return 'บริหาร/ศิลป์/โรงแรม';
+        }
+
+        function autoCalcTGAT() {
+            const v = [1,2,3].map(i => parseFloat(document.getElementById(`TGAT${i}`).value)||0);
+            if(v.some(x=>x>0) && !document.getElementById('TGAT').value) 
+                document.getElementById('TGAT').placeholder = `${((v[0]+v[1]+v[2])/3).toFixed(2)}`;
+        }
+
+        function getScore(name) {
+            let val = parseFloat(document.getElementById(name)?.value);
+            if (name === 'TGAT' && isNaN(val)) {
+                const v = [1,2,3].map(i => parseFloat(document.getElementById(`TGAT${i}`).value)||0);
+                if(v.some(x=>x>0)) return (v[0]+v[1]+v[2])/3;
+            }
+            if (name.startsWith('TPAT1')) return parseFloat(document.getElementById(name)?.value) || 0;
+            return val || 0;
+        }
+
+        function calculate() {
+            if(db.length===0) return alert("ยังไม่มีข้อมูล");
+            isCalculated = true;
+            
+            const inputIds = ['GPAX', 'TGAT', 'TGAT1', 'TGAT2', 'TGAT3', 'Math1', 'Math2', 'Phy', 'Chem', 'Bio', 'Sci', 'Thai', 'Soc', 'Eng', 'TPAT3', 'TPAT4', 'TPAT5', 'TPAT11', 'TPAT12', 'TPAT13', 'Fre', 'Ger', 'Jap', 'Chi', 'Kor', 'Pali'];
+            let studentScores = {};
+            inputIds.forEach(id => { const val = parseFloat(document.getElementById(id).value); if(!isNaN(val)) studentScores[id] = val; });
+            
+            if(firestoreDB && Object.keys(studentScores).length > 0) {
+                 firestoreDB.collection("student_scores").add({ ...studentScores, timestamp: firebase.firestore.FieldValue.serverTimestamp() })
+                 .catch(e => console.error("Save Error", e));
+            }
+            
+            filterResults();
+        }
+
+        // ====================================================
+        // 3. FILTER RESULTS (UPDATED WITH STRATEGY!)
+        // ====================================================
+
+        function filterResults() {
+            const searchRaw = document.getElementById('smartSearch').value;
+            const searchGroups = getExpandedKeywords(searchRaw); // ใช้ Smart Search
+            const typeFilter = document.getElementById('filterType').value;
+            const groupFilter = document.getElementById('filterGroup').value;
+            const sortMode = document.getElementById('sortFilter').value;
+            const container = document.getElementById('resultsArea');
+            
+            container.innerHTML = "";
+
+            let results = db.map(item => {
+                let myTotal = 0, used = [], pendingList = [], pendingWeight = 0;
+                
+                // คำนวณคะแนน
+                for (let [sub, weight] of Object.entries(item.weights)) {
+                    // เช็คว่ากรอกรึยัง (เพื่อใช้ระบบ Strategy)
+                    const inputEl = document.getElementById(sub);
+                    const isFilled = inputEl && inputEl.value !== "";
+
+                    let s = isCalculated ? getScore(sub) : 0;
+                    if(sub==='GPAX' && s<=4 && isFilled) s*=25;
+                    
+                    const wScore = (s * weight) / 100;
+                    myTotal += wScore;
+                    
+                    // เก็บข้อมูลวิชา
+                    if(weight > 0) {
+                        used.push({n: sub, w: weight, s: s, isFilled: isFilled});
+                        if (!isFilled && isCalculated) {
+                            pendingList.push({n: sub, w: weight});
+                            pendingWeight += weight;
+                        }
+                    }
+                }
+                
+                return { 
+                    ...item, 
+                    myTotal, 
+                    used, 
+                    gap: myTotal - item.minScore,
+                    pendingList,
+                    pendingWeight
+                };
+            })
+            .filter(item => {
+                // Smart Search Logic
+                const fullName = `${item.uni} ${item.faculty}`;
+                let matchSearch = true;
+                if (searchGroups.length > 0) {
+                    matchSearch = searchGroups.every(group => {
+                        return group.some(keyword => fullName.toLowerCase().includes(keyword));
+                    });
+                }
+                
+                const matchType = typeFilter === 'all' || item.tags.type === typeFilter;
+                const matchGroup = groupFilter === 'all' || item.tags.group === groupFilter;
+                return matchSearch && matchType && matchGroup;
+            });
+
+            if(sortMode === 'chance' && isCalculated) results.sort((a,b) => b.gap - a.gap);
+            else if(sortMode === 'score_asc') results.sort((a,b) => a.minScore - b.minScore);
+
+            if(results.length === 0) return container.innerHTML = `<div class="text-center text-zinc-600 py-10 opacity-50">ไม่พบคณะที่คุณค้นหา</div>`;
+
+            results.slice(0, 50).forEach(item => {
+                const isPass = item.gap >= 0;
+                const color = isPass ? "text-green-400" : "text-red-400";
+                const borderColor = isCalculated ? (isPass ? "border-green-500/40 bg-green-900/10" : "border-red-500/40 bg-red-900/10") : "border-zinc-800";
+                
+                // Badges
+                let badgeHtml = item.used.map(u => {
+                    let name = u.n.replace("Math","คณิต").replace("Eng","อังกฤษ").replace("GPAX","เกรด");
+                    let statusClass = u.isFilled ? (u.s > 0 ? 'text-white border-zinc-500' : 'text-zinc-500 border-zinc-700') : 'text-yellow-600 border-yellow-900/30 border-dashed';
+                    let scoreText = u.isFilled ? (u.n === 'GPAX' ? (u.s/25).toFixed(2) : u.s.toFixed(0)) : 'รอสอบ';
+                    return `<span class="badge ${statusClass}">${name} ${u.w}% (${scoreText})</span>`
+                }).join("");
+
+                // Strategy Table (Calculate Only if Failed & Has Pending Subjects)
+                let strategyHtml = "";
+                if (isCalculated && !isPass && item.pendingList.length > 0) {
+                    const avgW = item.pendingWeight / item.pendingList.length;
+                    const highW = item.pendingList.filter(s => s.w >= avgW);
+                    const lowW = item.pendingList.filter(s => s.w < avgW);
+                    const k_factor = (Math.abs(item.gap) * 100) / (lowW.reduce((a,b)=>a+b.w,0) + (2 * highW.reduce((a,b)=>a+b.w,0)));
+                    
+                    let rows = item.pendingList.sort((a,b)=>b.w - a.w).map(sub => {
+                        let scale = sub.n === 'GPAX' ? 25 : 1;
+                        let carry = ((Math.abs(item.gap) * 100) / sub.w) / scale;
+                        let balance = ((Math.abs(item.gap) * 100) / item.pendingWeight) / scale;
+                        let strat = (sub.w >= avgW ? 2*k_factor : k_factor) / scale;
+                        
+                        const fmt = (v) => {
+                            if(v > (sub.n==='GPAX'?4:100)) return `<span class="text-red-500/50">>Max</span>`;
+                            return v.toFixed(1);
+                        };
+
+                        return `<tr>
+                            <td class="text-left">${sub.n} (${sub.w}%)</td>
+                            <td class="text-red-400 font-bold">${fmt(carry)}</td>
+                            <td class="text-blue-400">${fmt(balance)}</td>
+                            <td class="text-purple-400 font-bold bg-purple-900/20 rounded">${fmt(strat)}</td>
+                        </tr>`;
+                    }).join("");
+
+                    strategyHtml = `
+                    <details>
+                        <summary>🎯 เป้าหมายคะแนนที่เหลือ (Gap: ${item.gap.toFixed(2)})</summary>
+                        <table class="analysis-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">วิชาที่เหลือ</th>
+                                    <th class="text-red-400" title="ต้องทำวิชานี้เท่าไหร่ถ้าทิ้งวิชาอื่นหมด">A.Carry</th>
+                                    <th class="text-blue-400" title="หารเฉลี่ยเท่ากันทุกวิชา">B.Balance</th>
+                                    <th class="text-purple-400" title="เน้นวิชา % เยอะ">C.Strat</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </details>`;
+                }
+
+                let html = `
+                <div class="glass p-4 md:p-5 border ${borderColor} relative group hover:border-zinc-500 transition-all flex flex-col md:flex-row gap-3 md:gap-4 items-start">
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <div class="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-white p-2 flex items-center justify-center shrink-0 shadow-lg">
+                            ${item.logo ? `<img src="${item.logo}" class="max-w-full max-h-full object-contain">` : '<i class="fa-solid fa-university text-2xl text-black"></i>'}
+                        </div>
+                        <div class="md:hidden flex-1 min-w-0">
+                            <div class="text-xs text-green-400 font-bold truncate">${item.uni}</div>
+                            <div class="text-sm text-white font-bold leading-tight truncate">${item.faculty}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 min-w-0 w-full">
+                        <div class="hidden md:block">
+                            <div class="flex flex-wrap gap-2 mb-1">
+                                <span class="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-700">${item.tags.type}</span>
+                            </div>
+                            <div class="text-sm text-green-400 font-bold truncate">${item.uni}</div>
+                            <div class="text-lg text-white font-bold leading-tight mb-2">${item.faculty}</div>
+                        </div>
+                        <div class="flex flex-wrap gap-y-1">${badgeHtml}</div>
+                        ${strategyHtml}
+                    </div>
+
+                    <div class="flex flex-row md:flex-col justify-between w-full md:w-auto md:text-right border-t md:border-t-0 border-zinc-800 pt-3 md:pt-0 mt-1 md:mt-0 gap-4">
+                        <div>
+                            <div class="text-[10px] text-zinc-500">ต่ำสุด 67</div>
+                            <div class="text-lg md:text-xl font-mono font-bold text-zinc-300">${item.minScore>0 ? item.minScore.toFixed(2) : '-'}</div>
+                        </div>
+                        ${isCalculated ? `
+                        <div class="md:mt-auto text-right">
+                            <div class="text-[10px] text-zinc-500">โอกาสติด</div>
+                            <div class="text-xl md:text-2xl font-bold ${color}">${item.gap>0?'+':''}${item.gap.toFixed(2)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>`;
+                container.innerHTML += html;
+            });
+        }
+        
+        init();
+    </script>
+</body>
+</html>
