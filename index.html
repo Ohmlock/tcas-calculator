@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบคำนวณคะแนน TCAS (v 1.1.0 - Smart Edition)</title>
+    <title>ระบบคำนวณคะแนน TCAS (v 1.4.1 - Warning TGAT)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
@@ -16,7 +16,7 @@
     
     <style>
         :root { --bg: #09090b; --card: #18181b; --border: #27272a; --accent: #22c55e; }
-        body { background: var(--bg); color: #e4e4e7; font-family: 'Prompt', sans-serif; padding: 12px; padding-bottom: 80px; }
+        body { background: var(--bg); color: #e4e4e7; font-family: 'Prompt', sans-serif; padding: 12px; padding-bottom: 40px; }
         
         /* Glass Card */
         .glass { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; height: 100%; display: flex; flex-direction: column; }
@@ -33,6 +33,8 @@
         .btn-zinc { background: #27272a; color: white; border: 1px solid #3f3f46; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
         .btn-main { background: var(--accent); color: black; font-weight: 600; padding: 10px 24px; border-radius: 8px; transition: 0.2s; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2); }
         .btn-main:active { transform: scale(0.98); }
+        .btn-danger { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #7f1d1d; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 0.2s; }
+        .btn-danger:hover { background: rgba(220, 38, 38, 0.4); border-color: #ef4444; color: white; }
 
         /* Grid System */
         .grid-inputs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 16px; }
@@ -43,13 +45,23 @@
         
         .badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #3f3f46; background: #18181b; color: #a1a1aa; margin-right: 4px; margin-bottom: 4px; display: inline-block; }
         
-        /* Analysis Table Style (New) */
+        /* Analysis Table Style */
         details > summary { list-style: none; cursor: pointer; color: #fbbf24; font-size: 0.8rem; font-weight: 600; padding: 8px; border-radius: 6px; background: rgba(251, 191, 36, 0.1); text-align: center; margin-top: 10px; border: 1px solid rgba(251, 191, 36, 0.2); transition: 0.2s; }
         details > summary:hover { background: rgba(251, 191, 36, 0.2); }
         .analysis-table { width: 100%; font-size: 0.75rem; border-collapse: separate; border-spacing: 0; margin-top: 8px; }
         .analysis-table th { color: #a1a1aa; padding: 6px; border-bottom: 1px solid #333; font-weight: 600; text-align: center; background: #27272a; }
         .analysis-table td { padding: 6px; border-bottom: 1px solid #27272a; text-align: center; font-family: 'JetBrains Mono'; color: #d4d4d8; }
         .analysis-table tr:last-child td { border-bottom: none; }
+        
+        /* Load More Button */
+        #loadMoreBtn { width: 100%; padding: 12px; background: #18181b; border: 1px dashed #3f3f46; color: #a1a1aa; border-radius: 8px; margin-top: 20px; cursor: pointer; transition: 0.2s; }
+        #loadMoreBtn:hover { background: #27272a; color: white; border-color: white; }
+
+        /* Footer Disclaimer */
+        footer { margin-top: 40px; padding-top: 24px; border-top: 1px solid #27272a; color: #71717a; font-size: 0.75rem; line-height: 1.6; }
+        footer strong { color: #a1a1aa; }
+        footer a { color: #22c55e; text-decoration: none; transition: 0.2s; }
+        footer a:hover { text-decoration: underline; color: #4ade80; }
     </style>
 </head>
 <body class="max-w-6xl mx-auto">
@@ -58,7 +70,7 @@
         <div class="w-full md:w-auto">
             <h1 class="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center flex-wrap gap-2">
                 คำนวณ <span class="text-green-500">TCAS</span> 
-                <span class="text-[10px] border border-zinc-700 text-zinc-500 px-2 py-0.5 rounded align-middle whitespace-nowrap">v 1.1.0 Smart</span>
+                <span class="text-[10px] border border-zinc-700 text-zinc-500 px-2 py-0.5 rounded align-middle whitespace-nowrap">v 1.4.1 Warning</span>
             </h1>
             <div class="flex flex-wrap gap-3 items-center">
                 <div id="statusBadge" class="flex items-center gap-2 text-xs text-zinc-500">
@@ -71,6 +83,10 @@
             </div>
         </div>
         <div class="w-full md:w-auto flex flex-wrap gap-2">
+            <button onclick="resetData()" class="btn-danger flex-1 md:flex-none" title="ล้างข้อมูลทั้งหมด">
+                <i class="fa-solid fa-trash-can"></i> <span class="md:hidden">ล้างค่า</span>
+            </button>
+
             <button onclick="downloadTemplate()" class="btn-zinc flex-1 md:flex-none hover:border-green-500 hover:text-green-400 transition-colors">
                 <i class="fa-solid fa-file-excel"></i> โหลดแบบฟอร์ม
             </button>
@@ -88,8 +104,11 @@
             <div class="glass-header text-yellow-500"><i class="fa-solid fa-star"></i> GPAX & TGAT</div>
             <div class="p-4 md:p-5 flex flex-col gap-4 h-full justify-start">
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="font-bold text-white">GPAX (เกรด)</label><input type="number" id="GPAX" placeholder="0.00-4.00" class="text-lg font-mono text-yellow-400 border-yellow-500/30 bg-yellow-500/5 focus:bg-black"></div>
-                    <div><label class="font-bold text-white">TGAT รวม</label><input type="number" id="TGAT" placeholder="Auto" class="text-lg font-mono text-green-400 border-green-500/30 bg-green-500/5 focus:bg-black"></div>
+                    <div><label class="font-bold text-white">GPAX (เกรด)</label><input type="number" id="GPAX" placeholder="0.00-4.00" class="score-input text-lg font-mono text-yellow-400 border-yellow-500/30 bg-yellow-500/5 focus:bg-black"></div>
+                    <div>
+                        <label class="font-bold text-white">TGAT รวม <span id="tgatWarning" class="text-red-500 text-[10px] hidden font-normal animate-pulse ml-1">* ต้องพิมพ์ตัวเลขลงในช่องนี้</span></label>
+                        <input type="number" id="TGAT" placeholder="Auto" class="score-input text-lg font-mono text-green-400 border-green-500/30 bg-green-500/5 focus:bg-black" oninput="autoCalcTGAT()">
+                    </div>
                 </div>
                 <div class="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800">
                     <div class="text-[10px] text-zinc-500 mb-2 flex items-center gap-1"><i class="fa-solid fa-calculator"></i> คะแนนย่อย (Auto Calc)</div>
@@ -98,19 +117,19 @@
                             <label class="text-[10px] text-zinc-500 text-center block whitespace-normal leading-tight">
                                 <span class="font-bold text-zinc-300">TGAT1</span> สื่อสาร
                             </label>
-                            <input type="number" id="TGAT1" class="calc-trigger text-center text-sm" placeholder="อังกฤษ">
+                            <input type="number" id="TGAT1" class="calc-trigger score-input text-center text-sm" placeholder="อังกฤษ">
                         </div>
                         <div>
                             <label class="text-[10px] text-zinc-500 text-center block whitespace-normal leading-tight">
                                 <span class="font-bold text-zinc-300">TGAT2</span> เหตุผล
                             </label>
-                            <input type="number" id="TGAT2" class="calc-trigger text-center text-sm" placeholder="ตรรกะ">
+                            <input type="number" id="TGAT2" class="calc-trigger score-input text-center text-sm" placeholder="ตรรกะ">
                         </div>
                         <div>
                             <label class="text-[10px] text-zinc-500 text-center block whitespace-normal leading-tight">
                                 <span class="font-bold text-zinc-300">TGAT3</span> สมรรถนะ
                             </label>
-                            <input type="number" id="TGAT3" class="calc-trigger text-center text-sm" placeholder="ทำงาน">
+                            <input type="number" id="TGAT3" class="calc-trigger score-input text-center text-sm" placeholder="ทำงาน">
                         </div>
                     </div>
                 </div>
@@ -120,12 +139,12 @@
         <div class="glass border-l-4 border-l-blue-500">
             <div class="glass-header text-blue-400"><i class="fa-solid fa-flask"></i> A-Level วิทย์-คณิต</div>
             <div class="grid-inputs">
-                <div><label>คณิต 1 (เพิ่ม)</label><input type="number" id="Math1"></div>
-                <div><label>คณิต 2 (พื้น)</label><input type="number" id="Math2"></div>
-                <div><label>ฟิสิกส์</label><input type="number" id="Phy"></div>
-                <div><label>เคมี</label><input type="number" id="Chem"></div>
-                <div><label>ชีวะ</label><input type="number" id="Bio"></div>
-                <div><label>วิทย์ประยุกต์</label><input type="number" id="Sci"></div>
+                <div><label>คณิต 1 (เพิ่ม)</label><input type="number" id="Math1" class="score-input"></div>
+                <div><label>คณิต 2 (พื้น)</label><input type="number" id="Math2" class="score-input"></div>
+                <div><label>ฟิสิกส์</label><input type="number" id="Phy" class="score-input"></div>
+                <div><label>เคมี</label><input type="number" id="Chem" class="score-input"></div>
+                <div><label>ชีวะ</label><input type="number" id="Bio" class="score-input"></div>
+                <div><label>วิทย์ประยุกต์</label><input type="number" id="Sci" class="score-input"></div>
             </div>
         </div>
 
@@ -133,16 +152,16 @@
             <div class="glass-header text-pink-400"><i class="fa-solid fa-shapes"></i> TPAT ความถนัด</div>
             <div class="p-4 md:p-5 flex flex-col gap-4">
                 <div class="grid grid-cols-3 gap-2">
-                    <div><label>TPAT3 (วิศวะ)</label><input type="number" id="TPAT3" class="text-center px-1"></div>
-                    <div><label>TPAT4 (สถาปัต)</label><input type="number" id="TPAT4" class="text-center px-1"></div>
-                    <div><label>TPAT5 (ครุ)</label><input type="number" id="TPAT5" class="text-center px-1"></div>
+                    <div><label>TPAT3 (วิศวะ)</label><input type="number" id="TPAT3" class="score-input text-center px-1"></div>
+                    <div><label>TPAT4 (สถาปัต)</label><input type="number" id="TPAT4" class="score-input text-center px-1"></div>
+                    <div><label>TPAT5 (ครุ)</label><input type="number" id="TPAT5" class="score-input text-center px-1"></div>
                 </div>
                 <div class="border-t border-zinc-800 pt-3 mt-auto">
                     <label class="mb-2 text-xs text-pink-300">TPAT 1 (วิชาเฉพาะแพทย์)</label>
                     <div class="grid grid-cols-3 gap-2">
-                        <input type="number" id="TPAT11" placeholder="Part 1" class="text-center text-sm px-1">
-                        <input type="number" id="TPAT12" placeholder="Part 2" class="text-center text-sm px-1">
-                        <input type="number" id="TPAT13" placeholder="Part 3" class="text-center text-sm px-1">
+                        <input type="number" id="TPAT11" placeholder="Part 1" class="score-input text-center text-sm px-1">
+                        <input type="number" id="TPAT12" placeholder="Part 2" class="score-input text-center text-sm px-1">
+                        <input type="number" id="TPAT13" placeholder="Part 3" class="score-input text-center text-sm px-1">
                     </div>
                 </div>
             </div>
@@ -152,10 +171,10 @@
             <div class="glass-header text-orange-400"><i class="fa-solid fa-book"></i> ไทย - สังคม - Eng</div>
             <div class="p-4 md:p-5">
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div><label>ภาษาไทย</label><input type="number" id="Thai"></div>
-                    <div><label>สังคม</label><input type="number" id="Soc"></div>
+                    <div><label>ภาษาไทย</label><input type="number" id="Thai" class="score-input"></div>
+                    <div><label>สังคม</label><input type="number" id="Soc" class="score-input"></div>
                 </div>
-                <div class="pt-1"><label>ภาษาอังกฤษ</label><input type="number" id="Eng" class="border-orange-500/30"></div>
+                <div class="pt-1"><label>ภาษาอังกฤษ</label><input type="number" id="Eng" class="score-input border-orange-500/30"></div>
             </div>
         </div>
 
@@ -164,12 +183,12 @@
                 <div><i class="fa-solid fa-language"></i> ภาษาต่างประเทศ (PAT 7)</div>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 p-4 md:p-5">
-                <div><label>ฝรั่งเศส</label><input type="number" id="Fre"></div>
-                <div><label>เยอรมัน</label><input type="number" id="Ger"></div>
-                <div><label>ญี่ปุ่น</label><input type="number" id="Jap"></div>
-                <div><label>จีน</label><input type="number" id="Chi"></div>
-                <div><label>เกาหลี</label><input type="number" id="Kor"></div>
-                <div><label>บาลี</label><input type="number" id="Pali"></div>
+                <div><label>ฝรั่งเศส</label><input type="number" id="Fre" class="score-input"></div>
+                <div><label>เยอรมัน</label><input type="number" id="Ger" class="score-input"></div>
+                <div><label>ญี่ปุ่น</label><input type="number" id="Jap" class="score-input"></div>
+                <div><label>จีน</label><input type="number" id="Chi" class="score-input"></div>
+                <div><label>เกาหลี</label><input type="number" id="Kor" class="score-input"></div>
+                <div><label>บาลี</label><input type="number" id="Pali" class="score-input"></div>
             </div>
         </div>
     </div>
@@ -178,39 +197,80 @@
         <div class="flex flex-col md:flex-row gap-3">
             <div class="relative flex-1">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"></i>
-                <input type="text" id="smartSearch" class="pl-9 h-10 md:h-12 bg-black/50 border-zinc-700 focus:border-green-500 text-base md:text-lg w-full" placeholder="ค้นหา: เช่น หมอ มธ, วิศวะ จุฬา, อยากรวย..." onkeyup="filterResults()">
+                <input type="text" id="smartSearch" class="pl-9 h-10 md:h-12 bg-black/50 border-zinc-700 focus:border-green-500 text-base md:text-lg w-full" placeholder="ค้นหา: เช่น หมอ มธ, วิศวะ จุฬา, เภสัช ศิลปากร..." onkeyup="debouncedFilter()">
             </div>
             <button onclick="calculate()" class="btn-main whitespace-nowrap px-6 text-base md:text-lg h-10 md:h-12 flex items-center justify-center gap-2 w-full md:w-auto">
                 <i class="fa-solid fa-calculator"></i> <span class="md:hidden">คำนวณ</span><span class="hidden md:inline">คำนวณโอกาสติด</span>
             </button>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-            <select id="filterType" onchange="filterResults()" class="h-9 text-xs bg-zinc-900 border-zinc-700 rounded">
+            <select id="filterType" onchange="runFilter()" class="h-9 text-xs bg-zinc-900 border-zinc-700 rounded">
                 <option value="all">ทุกสถาบัน</option>
                 <option value="รัฐบาล">รัฐบาล</option>
                 <option value="เอกชน">เอกชน</option>
                 <option value="ราชภัฏ">ราชภัฏ</option>
                 <option value="ราชมงคล">ราชมงคล</option>
             </select>
-            <select id="filterGroup" onchange="filterResults()" class="h-9 text-xs bg-zinc-900 border-zinc-700 rounded">
+            <select id="filterGroup" onchange="runFilter()" class="h-9 text-xs bg-zinc-900 border-zinc-700 rounded">
                 <option value="all">ทุกกลุ่มคณะ</option>
                 <option value="สายแพทย์/สุขภาพ">แพทย์/สุขภาพ</option>
                 <option value="วิศวะ/เทคโน/สถาปัตย์">วิศวะ/IT</option>
                 <option value="บริหาร/ศิลป์/โรงแรม">บริหาร/ศิลป์</option>
             </select>
-             <select id="sortFilter" onchange="filterResults()" class="h-9 text-xs bg-zinc-900 border-zinc-700 col-span-2 md:col-span-2 rounded">
+             <select id="sortFilter" onchange="runFilter()" class="h-9 text-xs bg-zinc-900 border-zinc-700 col-span-2 md:col-span-2 rounded">
                 <option value="default">เรียง: แนะนำ</option>
                 <option value="chance">เรียง: โอกาสติดมากสุด</option>
                 <option value="score_asc">เรียง: คะแนนต่ำสุด (น้อยไปมาก)</option>
             </select>
         </div>
     </div>
+    
+    <div class="flex justify-between items-end mb-2 px-1">
+        <h2 class="text-zinc-500 text-sm">ผลลัพธ์การค้นหา</h2>
+        <div id="resultCountDisplay" class="text-green-500 text-sm font-bold">...</div>
+    </div>
 
     <div id="resultsArea" class="space-y-3 md:space-y-4"></div>
+    <button id="loadMoreBtn" class="hidden" onclick="loadMore()">แสดงเพิ่มเติม...</button>
+
+    <footer>
+        <div class="glass p-5 border border-zinc-800">
+            <h3 class="font-bold text-zinc-400 mb-2">ข้อจำกัดความรับผิดชอบ (Disclaimer):</h3>
+            <p class="mb-2">
+                ข้อมูลและผลลัพธ์จากการคำนวณในเว็บไซต์นี้ เป็นเพียงเครื่องมือช่วยประเมินเบื้องต้นเท่านั้น 
+                <strong class="text-zinc-300">โปรดตรวจสอบข้อมูลอย่างเป็นทางการจากเว็บไซต์ mytcas.com อีกครั้งก่อนการตัดสินใจ</strong>
+            </p>
+            <p class="mb-2">
+                <strong>หมายเหตุ:</strong> ระบบใช้เกณฑ์การคำนวณคะแนนของปีการศึกษาปัจจุบัน (อ้างอิง TCAS69) 
+                โดยเทียบกับฐานคะแนนต่ำสุด-สูงสุดของปีการศึกษา 2568 ซึ่งบางหลักสูตรอาจมีการปรับเปลี่ยนเกณฑ์คัดเลือก 
+                ส่งผลให้ผลการเปรียบเทียบคะแนนมีความคลาดเคลื่อนได้
+            </p>
+            <p class="mt-4 pt-4 border-t border-zinc-800/50">
+                หากพบข้อผิดพลาดของข้อมูล สามารถแจ้งได้ที่: 
+                <a href="mailto:ohmlock.game@gmail.com"><i class="fa-solid fa-envelope"></i> ohmlock.game@gmail.com</a>
+            </p>
+        </div>
+    </footer>
 
     <script>
         // ====================================================
-        // 0. SMART SEARCH KNOWLEDGE BASE (NEW!)
+        // 0. CONFIG & DATA
+        // ====================================================
+        const SHEET_ID = '1Aaj3gYyb0MKBYYdBm3OAN6qTtSuEIX43oh6DqrI_Zyk'; 
+        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+        const STORAGE_KEY = 'tcas_scores_v1';
+
+        let db = [];
+        let filteredDB = []; 
+        let isCalculated = false;
+        let currentDisplayCount = 20; 
+        let firestoreDB;
+        let userInputs = {}; 
+
+        const SUBJECT_IDS = ['GPAX', 'TGAT', 'TGAT1', 'TGAT2', 'TGAT3', 'Math1', 'Math2', 'Phy', 'Chem', 'Bio', 'Sci', 'Thai', 'Soc', 'Eng', 'TPAT3', 'TPAT4', 'TPAT5', 'TPAT11', 'TPAT12', 'TPAT13', 'Fre', 'Ger', 'Jap', 'Chi', 'Kor', 'Pali', 'Bal', 'Spa'];
+
+        // ====================================================
+        // 1. UTILS & KNOWLEDGE BASE
         // ====================================================
         const searchSynonyms = {
             'หมอ': ['แพทย', 'med'], 'หมอฟัน': ['ทันต', 'dent'], 'หมอยา': ['เภสัช', 'pharm'],
@@ -244,10 +304,10 @@
             'บางมด': 'พระจอมเกล้าธนบุรี', 'kmutt': 'พระจอมเกล้าธนบุรี',
             'พระนครเหนือ': 'พระจอมเกล้าพระนครเหนือ', 'kmutnb': 'พระจอมเกล้าพระนครเหนือ',
             'ม.อ.': 'สงขลานครินทร์', 'psu': 'สงขลานครินทร์', 'มฟล': 'แม่ฟ้าหลวง', 'mfu': 'แม่ฟ้าหลวง',
-            'มบูรพา': 'บูรพา', 'buu': 'บูรพา'
+            'มบูรพา': 'บูรพา', 'buu': 'บูรพา',
+            'มศก': 'ศิลปากร', 'su': 'ศิลปากร', 'ศิลปากร': 'ศิลปากร' 
         };
 
-        // ฟังก์ชันช่วยแตก Keyword (NEW!)
         function getExpandedKeywords(query) {
             if (!query) return [];
             const tokens = query.toLowerCase().split(/\s+/).filter(t => t);
@@ -258,12 +318,21 @@
             });
         }
 
-        // ====================================================
-        // 1. CONFIG & FIREBASE
-        // ====================================================
-        const SHEET_ID = '1Aaj3gYyb0MKBYYdBm3OAN6qTtSuEIX43oh6DqrI_Zyk'; 
-        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
 
+        // ====================================================
+        // 2. FIREBASE & INIT
+        // ====================================================
         const firebaseConfig = {
             apiKey: "AIzaSyBYMLsoiK9VV1yOqHFQgCPOjt96VNZecGI",
             authDomain: "tcas-calculator.firebaseapp.com",
@@ -274,124 +343,389 @@
             measurementId: "G-TBV32ELDKR"
         };
 
-        let db = [];
-        let isCalculated = false;
-        let firestoreDB;
-
         try {
             firebase.initializeApp(firebaseConfig);
             firestoreDB = firebase.firestore();
-            
             const countRef = firestoreDB.collection("website_stats").doc("visitors");
             countRef.get().then((doc) => {
                 if (!doc.exists) countRef.set({ count: 1 });
                 else countRef.update({ count: firebase.firestore.FieldValue.increment(1) });
             });
-            
             countRef.onSnapshot((doc) => {
                 if (doc.exists) document.getElementById('visitorCountDisplay').innerText = doc.data().count.toLocaleString();
             });
-
         } catch (e) {
             console.error("Firebase Error:", e);
             document.getElementById('visitorCountDisplay').innerText = "Offline";
         }
 
-        // ====================================================
-        // 2. MAIN LOGIC
-        // ====================================================
-        
         async function init() {
             try {
+                loadFromLocalStorage(); // Load saved data
+                refreshInputCache();
                 const res = await fetch(SHEET_URL);
                 const text = await res.text();
                 const json = JSON.parse(text.substr(47).slice(0, -2));
                 const raw = parseMasterGoogleSheet(json);
                 db = enrichData(raw); 
-                
                 document.getElementById('statusBadge').innerHTML = `<span class="text-green-500">●</span> <span class="hidden md:inline">พร้อมใช้งาน</span>`;
-                filterResults();
+                
+                setupInputListeners();
+                
+                runFilter(); 
             } catch(e) {
                 console.error(e);
                 document.getElementById('statusBadge').innerHTML = `<span class="text-red-500">● Offline</span>`;
             }
-            document.querySelectorAll('.calc-trigger').forEach(el => el.addEventListener('input', autoCalcTGAT));
         }
 
-        function downloadTemplate() {
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
-            window.open(url, '_blank');
-        }
-
-        function handleFileUpload(input) {
-             const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            if(file.name.endsWith('.xlsx')) {
-                reader.readAsArrayBuffer(file);
-                reader.onload = e => {
-                    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
-                    const processed = parseExcelFixedColumns(rows);
-                    if(processed.length === 0) return alert("รูปแบบไฟล์ไม่ถูกต้อง หรือไม่มีข้อมูลในแถว");
-                    db = enrichData(processed);
-                    document.getElementById('statusBadge').innerHTML = `<span class="text-blue-400">📂 ไฟล์ส่วนตัว</span>`;
-                    filterResults();
-                };
+        // ====================================================
+        // 3. STORAGE & LIMIT LOGIC
+        // ====================================================
+        
+        function setupInputListeners() {
+            // Scores
+            document.querySelectorAll('.score-input').forEach(el => {
+                el.addEventListener('input', (e) => {
+                    enforceLimit(e.target);
+                    // Updated: Trigger autoCalc on any input to check warning status
+                    if(e.target.id.includes('TGAT')) autoCalcTGAT();
+                    saveToLocalStorage();
+                });
+            });
+            
+            // Search Input
+            const searchInput = document.getElementById('smartSearch');
+            if(searchInput) {
+                searchInput.addEventListener('input', () => {
+                    saveToLocalStorage();
+                });
             }
         }
 
-        // --- PARSING LOGIC ---
+        function enforceLimit(input) {
+            let val = parseFloat(input.value);
+            if (isNaN(val)) return;
+
+            let max = input.id === 'GPAX' ? 4.00 : 100;
+            
+            if (val > max) {
+                input.value = max;
+            } else if (val < 0) {
+                input.value = 0;
+            }
+        }
+
+        function saveToLocalStorage() {
+            const data = {};
+            SUBJECT_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.value) data[id] = el.value;
+            });
+            
+            const searchVal = document.getElementById('smartSearch').value;
+            if(searchVal) data['smartSearch'] = searchVal;
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+            
+            try {
+                const data = JSON.parse(saved);
+                SUBJECT_IDS.forEach(id => {
+                    if (data[id]) document.getElementById(id).value = data[id];
+                });
+                if(data['smartSearch']) document.getElementById('smartSearch').value = data['smartSearch'];
+                
+                autoCalcTGAT();
+            } catch (e) {
+                console.error("Load Error", e);
+            }
+        }
+
+        function resetData() {
+            if(!confirm("คุณต้องการล้างคะแนนและการค้นหาทั้งหมดใช่หรือไม่?")) return;
+            
+            localStorage.removeItem(STORAGE_KEY);
+            SUBJECT_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.value = "";
+            });
+            document.getElementById('smartSearch').value = "";
+            document.getElementById('TGAT').placeholder = "Auto";
+            document.getElementById('tgatWarning').classList.add('hidden'); // Hide warning on reset
+            
+            refreshInputCache();
+            runFilter();
+        }
+
+        // ====================================================
+        // 4. CORE LOGIC
+        // ====================================================
+
+        function refreshInputCache() {
+            SUBJECT_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                userInputs[id] = el ? (parseFloat(el.value) || 0) : 0;
+                userInputs[id + '_raw'] = el ? el.value : "";
+            });
+            if (!userInputs['TGAT'] && (userInputs['TGAT1'] || userInputs['TGAT2'] || userInputs['TGAT3'])) {
+                userInputs['TGAT'] = (userInputs['TGAT1'] + userInputs['TGAT2'] + userInputs['TGAT3']) / 3;
+            }
+        }
+
+        function autoCalcTGAT() {
+            const t1 = parseFloat(document.getElementById('TGAT1').value) || 0;
+            const t2 = parseFloat(document.getElementById('TGAT2').value) || 0;
+            const t3 = parseFloat(document.getElementById('TGAT3').value) || 0;
+            const tTotal = document.getElementById('TGAT');
+            const warning = document.getElementById('tgatWarning');
+
+            const hasSub = t1 > 0 || t2 > 0 || t3 > 0;
+            
+            // 1. Update Placeholder
+            if(hasSub && !tTotal.value) {
+                tTotal.placeholder = ((t1 + t2 + t3) / 3).toFixed(2);
+            } else if (!hasSub) {
+                tTotal.placeholder = "Auto";
+            }
+
+            // 2. Toggle Warning (Logic: If has any sub-score AND total is empty -> Show Warning)
+            if (hasSub && !tTotal.value) {
+                warning.classList.remove('hidden');
+            } else {
+                warning.classList.add('hidden');
+            }
+        }
+
+        function calculate() {
+            if(db.length===0) return alert("ยังไม่มีข้อมูล");
+            isCalculated = true;
+            refreshInputCache(); 
+            
+            if(firestoreDB) {
+                let savePayload = {};
+                SUBJECT_IDS.forEach(id => { if(userInputs[id] > 0) savePayload[id] = userInputs[id]; });
+                if(Object.keys(savePayload).length > 0) {
+                     firestoreDB.collection("student_scores").add({ ...savePayload, timestamp: firebase.firestore.FieldValue.serverTimestamp() })
+                     .catch(e => console.error("Save Error", e));
+                }
+            }
+            runFilter();
+        }
+
+        const debouncedFilter = debounce(() => {
+            runFilter();
+        }, 300);
+
+        function runFilter() {
+            refreshInputCache(); 
+            
+            const searchRaw = document.getElementById('smartSearch').value;
+            const searchGroups = getExpandedKeywords(searchRaw);
+            const typeFilter = document.getElementById('filterType').value;
+            const groupFilter = document.getElementById('filterGroup').value;
+            const sortMode = document.getElementById('sortFilter').value;
+            
+            filteredDB = db.map(item => {
+                let myTotal = 0, used = [], pendingList = [], pendingWeight = 0;
+                
+                for (let [sub, weight] of Object.entries(item.weights)) {
+                    const isFilled = userInputs[sub + '_raw'] !== ""; 
+                    let s = isCalculated ? userInputs[sub] : 0;
+                    
+                    if (sub === 'TPAT1' && s === 0) { 
+                         s = (userInputs['TPAT11'] + userInputs['TPAT12'] + userInputs['TPAT13']);
+                         if(s > 0 && !isFilled) s = s; 
+                    }
+
+                    if(sub==='GPAX' && s<=4 && isFilled) s*=25; 
+                    
+                    const wScore = (s * weight) / 100;
+                    myTotal += wScore;
+                    
+                    if(weight > 0) {
+                        used.push({n: sub, w: weight, s: s, isFilled: isFilled});
+                        if (!isFilled && isCalculated) {
+                            pendingList.push({n: sub, w: weight});
+                            pendingWeight += weight;
+                        }
+                    }
+                }
+                
+                let gap = null;
+                if(item.minScore > 0) {
+                     gap = myTotal - item.minScore;
+                } else {
+                     gap = -99999; 
+                }
+                
+                return { ...item, myTotal, used, gap, pendingList, pendingWeight };
+            }).filter(item => {
+                const fullName = `${item.uni} ${item.subFaculty} ${item.faculty}`;
+                
+                let matchSearch = true;
+                if (searchGroups.length > 0) {
+                    matchSearch = searchGroups.every(group => group.some(kw => fullName.toLowerCase().includes(kw)));
+                }
+                const matchType = typeFilter === 'all' || item.tags.type === typeFilter;
+                const matchGroup = groupFilter === 'all' || item.tags.group === groupFilter;
+                return matchSearch && matchType && matchGroup;
+            });
+
+            document.getElementById('resultCountDisplay').innerHTML = `เจอทั้งหมด ${filteredDB.length} หลักสูตร`;
+
+            if(sortMode === 'chance' && isCalculated) {
+                filteredDB.sort((a,b) => b.gap - a.gap);
+            }
+            else if(sortMode === 'score_asc') filteredDB.sort((a,b) => {
+                if(a.minScore <= 0) return 1;
+                if(b.minScore <= 0) return -1;
+                return a.minScore - b.minScore;
+            });
+
+            currentDisplayCount = 20;
+            renderDOM();
+        }
+
+        function loadMore() {
+            currentDisplayCount += 20;
+            renderDOM();
+        }
+
+        function renderDOM() {
+            const container = document.getElementById('resultsArea');
+            const loadBtn = document.getElementById('loadMoreBtn');
+            
+            if(filteredDB.length === 0) {
+                container.innerHTML = `<div class="text-center text-zinc-600 py-10 opacity-50">ไม่พบคณะที่คุณค้นหา</div>`;
+                loadBtn.classList.add('hidden');
+                return;
+            }
+
+            const displayData = filteredDB.slice(0, currentDisplayCount);
+            
+            let htmlBuffer = displayData.map(item => {
+                const isValidCalc = item.gap > -90000; 
+                const isPass = isValidCalc && item.gap >= 0;
+                
+                const color = isPass ? "text-green-400" : "text-red-400";
+                const borderColor = (isCalculated && isValidCalc) ? (isPass ? "border-green-500/40 bg-green-900/10" : "border-red-500/40 bg-red-900/10") : "border-zinc-800";
+                
+                let badgeHtml = item.used.map(u => {
+                    let name = u.n.replace("Math","คณิต").replace("Eng","อังกฤษ").replace("GPAX","เกรด");
+                    let statusClass = u.isFilled ? (u.s > 0 ? 'text-white border-zinc-500' : 'text-zinc-500 border-zinc-700') : 'text-yellow-600 border-yellow-900/30 border-dashed';
+                    let scoreText = u.isFilled ? (u.n === 'GPAX' ? (u.s/25).toFixed(2) : u.s.toFixed(0)) : 'รอสอบ';
+                    return `<span class="badge ${statusClass}">${name} ${u.w}% (${scoreText})</span>`
+                }).join("");
+
+                let strategyHtml = "";
+                if (isCalculated && isValidCalc && !isPass && item.pendingList.length > 0) {
+                     const avgW = item.pendingWeight / item.pendingList.length;
+                     const highW = item.pendingList.filter(s => s.w >= avgW);
+                     const lowW = item.pendingList.filter(s => s.w < avgW);
+                     const k_factor = (Math.abs(item.gap) * 100) / (lowW.reduce((a,b)=>a+b.w,0) + (2 * highW.reduce((a,b)=>a+b.w,0)));
+                     let rows = item.pendingList.sort((a,b)=>b.w - a.w).map(sub => {
+                        let scale = sub.n === 'GPAX' ? 25 : 1;
+                        let carry = ((Math.abs(item.gap) * 100) / sub.w) / scale;
+                        let balance = ((Math.abs(item.gap) * 100) / item.pendingWeight) / scale;
+                        let strat = (sub.w >= avgW ? 2*k_factor : k_factor) / scale;
+                        const fmt = (v) => v > (sub.n==='GPAX'?4:100) ? `<span class="text-red-500/50">>Max</span>` : v.toFixed(1);
+                        return `<tr><td class="text-left">${sub.n} (${sub.w}%)</td><td class="text-red-400 font-bold">${fmt(carry)}</td><td class="text-blue-400">${fmt(balance)}</td><td class="text-purple-400 font-bold bg-purple-900/20 rounded">${fmt(strat)}</td></tr>`;
+                    }).join("");
+                    strategyHtml = `<details><summary>🎯 เป้าหมายคะแนนที่เหลือ (Gap: ${item.gap.toFixed(2)})</summary><table class="analysis-table"><thead><tr><th class="text-left">วิชา</th><th class="text-red-400">A.Carry</th><th class="text-blue-400">B.Balance</th><th class="text-purple-400">C.Strat</th></tr></thead><tbody>${rows}</tbody></table></details>`;
+                }
+
+                let gapBox = '';
+                if(isCalculated) {
+                    if(isValidCalc) {
+                         gapBox = `<div class="shrink-0 text-right"><div class="text-[9px] text-zinc-500 font-black uppercase tracking-widest mb-1">GAP Analysis</div><div class="text-xl md:text-3xl font-black ${color} leading-none"><span class="text-xs font-normal mr-1 opacity-60">pts</span>${item.gap > 0 ? '+' : ''}${item.gap.toFixed(2)}</div></div>`;
+                    } else {
+                         gapBox = `<div class="shrink-0 text-right"><div class="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-1">DATA N/A</div><div class="text-sm md:text-base font-bold text-zinc-500 bg-zinc-800 px-2 py-1 rounded">รอประกาศคะแนน</div></div>`;
+                    }
+                }
+
+                return `
+                <div class="glass p-4 md:p-5 border ${borderColor} relative group hover:border-zinc-500 transition-all shadow-md">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-3 pb-3 border-b border-zinc-800/60">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+                            <div class="w-8 h-8 rounded bg-white p-1 flex items-center justify-center shrink-0 ring-1 ring-zinc-700 shadow-sm">
+                                ${item.logo ? `<img src="${item.logo}" class="max-w-full max-h-full object-contain">` : '<i class="fa-solid fa-university text-xs text-black"></i>'}
+                            </div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-base md:text-lg text-green-400 font-black uppercase tracking-wide">${item.uni}</span>
+                                <span class="text-zinc-700 font-bold">|</span>
+                                <span class="text-base md:text-lg text-zinc-300 font-black">${item.subFaculty}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30 font-black">${item.round}</span>
+                                <span class="text-[10px] bg-zinc-800 text-orange-400 px-2 py-0.5 rounded border border-zinc-700 font-bold">รับ: ${item.capacity}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-5 shrink-0 bg-zinc-900/50 px-3 py-1.5 rounded-lg border border-zinc-800/80 mt-1 md:mt-0">
+                            <div class="flex flex-col items-center"><span class="text-[9px] text-zinc-500 font-black mb-0.5 uppercase">ต่ำสุด 68</span><span class="text-base md:text-lg font-mono font-black text-zinc-100">${item.minScore > 0 ? item.minScore.toFixed(2) : '-'}</span></div>
+                            <div class="w-[1px] bg-zinc-800 h-8 self-center"></div>
+                            <div class="flex flex-col items-center"><span class="text-[9px] text-zinc-500 font-black mb-0.5 uppercase">สูงสุด 68</span><span class="text-base md:text-lg font-mono font-black text-zinc-400">${item.maxScore > 0 ? item.maxScore.toFixed(2) : '-'}</span></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center gap-6 mb-3">
+                        <div class="flex-1 min-w-0"><h2 class="text-lg md:text-2xl text-white font-bold leading-tight tracking-tight">${item.faculty}</h2></div>
+                        ${gapBox}
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">${badgeHtml}</div>
+                    ${strategyHtml ? `<div class="mt-3 pt-3 border-t border-zinc-800/40">${strategyHtml}</div>` : ''}
+                </div>`;
+            }).join("");
+
+            container.innerHTML = htmlBuffer;
+            
+            if(filteredDB.length > currentDisplayCount) {
+                loadBtn.classList.remove('hidden');
+                loadBtn.innerHTML = `แสดงเพิ่มเติม (${filteredDB.length - currentDisplayCount})`;
+            } else {
+                loadBtn.classList.add('hidden');
+            }
+        }
+
+        // ====================================================
+        // 5. PARSING & HELPERS
+        // ====================================================
         function parseMasterGoogleSheet(json) {
             return json.table.rows.map((r, i) => {
-                const v = (idx) => (r.c[idx]?.v || 0);
-                const t = (idx) => (r.c[idx]?.v || "");
+                const v = (idx) => { const c = r.c[idx]; return (!c || typeof c.v !== 'number') ? (c && parseFloat(c.v)||0) : c.v; };
+                const t = (idx) => { const c = r.c[idx]; return (!c || c.v === null) ? "" : String(c.v).trim(); };
                 return extractDataFromRow(i, v, t);
             }).filter(x => x.faculty && x.faculty !== "");
         }
 
         function parseExcelFixedColumns(rows) {
             return rows.slice(1).map((r, i) => {
-                const v = (idx) => {
-                    let val = parseFloat(r[idx]);
-                    return isNaN(val) ? 0 : val;
-                };
-                const t = (idx) => (r[idx] ? String(r[idx]) : "");
+                const v = (idx) => { let val = parseFloat(r[idx]); return isNaN(val) ? 0 : val; };
+                const t = (idx) => (r[idx] ? String(r[idx]).trim() : "");
                 return extractDataFromRow(i, v, t);
             }).filter(item => item.faculty && item.faculty !== "");
         }
 
         function extractDataFromRow(id, getValue, getText) {
             let weights = {};
-            const addW = (k, idx) => { 
-                let val = getValue(idx);
-                if(val > 0) weights[k] = val; 
-            };
-            
-            // Fixed Column Index (Mapping)
-            addW("GPAX", 3);    addW("TGAT", 4);    addW("TGAT1", 5);   addW("TGAT2", 6);
-            addW("TGAT3", 7);   addW("TPAT11", 8);  addW("TPAT12", 9);  addW("TPAT13", 10); 
-            addW("TPAT4", 14);  addW("TPAT5", 15);  addW("TPAT3", 16);  addW("Math1", 17); 
-            addW("Math2", 18);  addW("Phy", 19);    addW("Chem", 20);   addW("Bio", 21); 
-            addW("Sci", 22);    addW("Eng", 23);    addW("Thai", 24);   addW("Soc", 25);
-            addW("Fre", 26);    addW("Ger", 27);    addW("Jap", 28);    addW("Chi", 30); 
-            
+            const addW = (k, idx) => { let val = getValue(idx); if(val > 0) weights[k] = val; };
+            addW("GPAX", 5); addW("TGAT", 6); addW("TGAT1", 7); addW("TGAT2", 8); addW("TGAT3", 9);
+            addW("TPAT11", 10); addW("TPAT12", 11); addW("TPAT13", 12); addW("TPAT21", 13); addW("TPAT22", 14); addW("TPAT23", 15);
+            addW("TPAT3", 16); addW("TPAT4", 17); addW("TPAT5", 18);
+            addW("Math1", 19); addW("Math2", 20); addW("Phy", 21); addW("Chem", 22); addW("Bio", 23); addW("Sci", 24); addW("Eng", 25); addW("Thai", 26); addW("Soc", 27);
+            addW("Fre", 28); addW("Ger", 29); addW("Jap", 30); addW("Kor", 31); addW("Chi", 32); addW("Bal", 33); addW("Spa", 34);
+
             return { 
-                id: id, 
-                uni: getText(0),       
-                faculty: getText(1),   
-                minScore: getValue(33),
-                logo: getText(36),     
-                weights: weights 
+                id: id, uni: getText(0), faculty: getText(2), subFaculty: getText(1), round: getText(4),
+                minScore: getValue(35), maxScore: getValue(36), capacity: getText(37), logo: getText(38), weights: weights 
             };
         }
 
-        // --- HELPERS ---
         function enrichData(data) {
-            return data.map(item => ({ 
-                ...item, 
-                tags: { type: getUniType(item.uni||""), group: getFacultyGroup(item.faculty||"") } 
-            }));
+            return data.map(item => ({ ...item, tags: { type: getUniType(item.uni||""), group: getFacultyGroup(item.faculty||"") } }));
         }
 
         function getUniType(uniName) {
@@ -411,204 +745,28 @@
             return 'บริหาร/ศิลป์/โรงแรม';
         }
 
-        function autoCalcTGAT() {
-            const v = [1,2,3].map(i => parseFloat(document.getElementById(`TGAT${i}`).value)||0);
-            if(v.some(x=>x>0) && !document.getElementById('TGAT').value) 
-                document.getElementById('TGAT').placeholder = `${((v[0]+v[1]+v[2])/3).toFixed(2)}`;
-        }
-
-        function getScore(name) {
-            let val = parseFloat(document.getElementById(name)?.value);
-            if (name === 'TGAT' && isNaN(val)) {
-                const v = [1,2,3].map(i => parseFloat(document.getElementById(`TGAT${i}`).value)||0);
-                if(v.some(x=>x>0)) return (v[0]+v[1]+v[2])/3;
-            }
-            if (name.startsWith('TPAT1')) return parseFloat(document.getElementById(name)?.value) || 0;
-            return val || 0;
-        }
-
-        function calculate() {
-            if(db.length===0) return alert("ยังไม่มีข้อมูล");
-            isCalculated = true;
-            
-            const inputIds = ['GPAX', 'TGAT', 'TGAT1', 'TGAT2', 'TGAT3', 'Math1', 'Math2', 'Phy', 'Chem', 'Bio', 'Sci', 'Thai', 'Soc', 'Eng', 'TPAT3', 'TPAT4', 'TPAT5', 'TPAT11', 'TPAT12', 'TPAT13', 'Fre', 'Ger', 'Jap', 'Chi', 'Kor', 'Pali'];
-            let studentScores = {};
-            inputIds.forEach(id => { const val = parseFloat(document.getElementById(id).value); if(!isNaN(val)) studentScores[id] = val; });
-            
-            if(firestoreDB && Object.keys(studentScores).length > 0) {
-                 firestoreDB.collection("student_scores").add({ ...studentScores, timestamp: firebase.firestore.FieldValue.serverTimestamp() })
-                 .catch(e => console.error("Save Error", e));
-            }
-            
-            filterResults();
-        }
-
-        // ====================================================
-        // 3. FILTER RESULTS (UPDATED WITH STRATEGY!)
-        // ====================================================
-
-        function filterResults() {
-            const searchRaw = document.getElementById('smartSearch').value;
-            const searchGroups = getExpandedKeywords(searchRaw); // ใช้ Smart Search
-            const typeFilter = document.getElementById('filterType').value;
-            const groupFilter = document.getElementById('filterGroup').value;
-            const sortMode = document.getElementById('sortFilter').value;
-            const container = document.getElementById('resultsArea');
-            
-            container.innerHTML = "";
-
-            let results = db.map(item => {
-                let myTotal = 0, used = [], pendingList = [], pendingWeight = 0;
-                
-                // คำนวณคะแนน
-                for (let [sub, weight] of Object.entries(item.weights)) {
-                    // เช็คว่ากรอกรึยัง (เพื่อใช้ระบบ Strategy)
-                    const inputEl = document.getElementById(sub);
-                    const isFilled = inputEl && inputEl.value !== "";
-
-                    let s = isCalculated ? getScore(sub) : 0;
-                    if(sub==='GPAX' && s<=4 && isFilled) s*=25;
-                    
-                    const wScore = (s * weight) / 100;
-                    myTotal += wScore;
-                    
-                    // เก็บข้อมูลวิชา
-                    if(weight > 0) {
-                        used.push({n: sub, w: weight, s: s, isFilled: isFilled});
-                        if (!isFilled && isCalculated) {
-                            pendingList.push({n: sub, w: weight});
-                            pendingWeight += weight;
-                        }
-                    }
-                }
-                
-                return { 
-                    ...item, 
-                    myTotal, 
-                    used, 
-                    gap: myTotal - item.minScore,
-                    pendingList,
-                    pendingWeight
-                };
-            })
-            .filter(item => {
-                // Smart Search Logic
-                const fullName = `${item.uni} ${item.faculty}`;
-                let matchSearch = true;
-                if (searchGroups.length > 0) {
-                    matchSearch = searchGroups.every(group => {
-                        return group.some(keyword => fullName.toLowerCase().includes(keyword));
-                    });
-                }
-                
-                const matchType = typeFilter === 'all' || item.tags.type === typeFilter;
-                const matchGroup = groupFilter === 'all' || item.tags.group === groupFilter;
-                return matchSearch && matchType && matchGroup;
-            });
-
-            if(sortMode === 'chance' && isCalculated) results.sort((a,b) => b.gap - a.gap);
-            else if(sortMode === 'score_asc') results.sort((a,b) => a.minScore - b.minScore);
-
-            if(results.length === 0) return container.innerHTML = `<div class="text-center text-zinc-600 py-10 opacity-50">ไม่พบคณะที่คุณค้นหา</div>`;
-
-            results.slice(0, 50).forEach(item => {
-                const isPass = item.gap >= 0;
-                const color = isPass ? "text-green-400" : "text-red-400";
-                const borderColor = isCalculated ? (isPass ? "border-green-500/40 bg-green-900/10" : "border-red-500/40 bg-red-900/10") : "border-zinc-800";
-                
-                // Badges
-                let badgeHtml = item.used.map(u => {
-                    let name = u.n.replace("Math","คณิต").replace("Eng","อังกฤษ").replace("GPAX","เกรด");
-                    let statusClass = u.isFilled ? (u.s > 0 ? 'text-white border-zinc-500' : 'text-zinc-500 border-zinc-700') : 'text-yellow-600 border-yellow-900/30 border-dashed';
-                    let scoreText = u.isFilled ? (u.n === 'GPAX' ? (u.s/25).toFixed(2) : u.s.toFixed(0)) : 'รอสอบ';
-                    return `<span class="badge ${statusClass}">${name} ${u.w}% (${scoreText})</span>`
-                }).join("");
-
-                // Strategy Table (Calculate Only if Failed & Has Pending Subjects)
-                let strategyHtml = "";
-                if (isCalculated && !isPass && item.pendingList.length > 0) {
-                    const avgW = item.pendingWeight / item.pendingList.length;
-                    const highW = item.pendingList.filter(s => s.w >= avgW);
-                    const lowW = item.pendingList.filter(s => s.w < avgW);
-                    const k_factor = (Math.abs(item.gap) * 100) / (lowW.reduce((a,b)=>a+b.w,0) + (2 * highW.reduce((a,b)=>a+b.w,0)));
-                    
-                    let rows = item.pendingList.sort((a,b)=>b.w - a.w).map(sub => {
-                        let scale = sub.n === 'GPAX' ? 25 : 1;
-                        let carry = ((Math.abs(item.gap) * 100) / sub.w) / scale;
-                        let balance = ((Math.abs(item.gap) * 100) / item.pendingWeight) / scale;
-                        let strat = (sub.w >= avgW ? 2*k_factor : k_factor) / scale;
-                        
-                        const fmt = (v) => {
-                            if(v > (sub.n==='GPAX'?4:100)) return `<span class="text-red-500/50">>Max</span>`;
-                            return v.toFixed(1);
-                        };
-
-                        return `<tr>
-                            <td class="text-left">${sub.n} (${sub.w}%)</td>
-                            <td class="text-red-400 font-bold">${fmt(carry)}</td>
-                            <td class="text-blue-400">${fmt(balance)}</td>
-                            <td class="text-purple-400 font-bold bg-purple-900/20 rounded">${fmt(strat)}</td>
-                        </tr>`;
-                    }).join("");
-
-                    strategyHtml = `
-                    <details>
-                        <summary>🎯 เป้าหมายคะแนนที่เหลือ (Gap: ${item.gap.toFixed(2)})</summary>
-                        <table class="analysis-table">
-                            <thead>
-                                <tr>
-                                    <th class="text-left">วิชาที่เหลือ</th>
-                                    <th class="text-red-400" title="ต้องทำวิชานี้เท่าไหร่ถ้าทิ้งวิชาอื่นหมด">A.Carry</th>
-                                    <th class="text-blue-400" title="หารเฉลี่ยเท่ากันทุกวิชา">B.Balance</th>
-                                    <th class="text-purple-400" title="เน้นวิชา % เยอะ">C.Strat</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </details>`;
-                }
-
-                let html = `
-                <div class="glass p-4 md:p-5 border ${borderColor} relative group hover:border-zinc-500 transition-all flex flex-col md:flex-row gap-3 md:gap-4 items-start">
-                    <div class="flex items-center gap-3 w-full md:w-auto">
-                        <div class="w-12 h-12 md:w-14 md:h-14 rounded-lg bg-white p-2 flex items-center justify-center shrink-0 shadow-lg">
-                            ${item.logo ? `<img src="${item.logo}" class="max-w-full max-h-full object-contain">` : '<i class="fa-solid fa-university text-2xl text-black"></i>'}
-                        </div>
-                        <div class="md:hidden flex-1 min-w-0">
-                            <div class="text-xs text-green-400 font-bold truncate">${item.uni}</div>
-                            <div class="text-sm text-white font-bold leading-tight truncate">${item.faculty}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex-1 min-w-0 w-full">
-                        <div class="hidden md:block">
-                            <div class="flex flex-wrap gap-2 mb-1">
-                                <span class="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-700">${item.tags.type}</span>
-                            </div>
-                            <div class="text-sm text-green-400 font-bold truncate">${item.uni}</div>
-                            <div class="text-lg text-white font-bold leading-tight mb-2">${item.faculty}</div>
-                        </div>
-                        <div class="flex flex-wrap gap-y-1">${badgeHtml}</div>
-                        ${strategyHtml}
-                    </div>
-
-                    <div class="flex flex-row md:flex-col justify-between w-full md:w-auto md:text-right border-t md:border-t-0 border-zinc-800 pt-3 md:pt-0 mt-1 md:mt-0 gap-4">
-                        <div>
-                            <div class="text-[10px] text-zinc-500">ต่ำสุด 67</div>
-                            <div class="text-lg md:text-xl font-mono font-bold text-zinc-300">${item.minScore>0 ? item.minScore.toFixed(2) : '-'}</div>
-                        </div>
-                        ${isCalculated ? `
-                        <div class="md:mt-auto text-right">
-                            <div class="text-[10px] text-zinc-500">โอกาสติด</div>
-                            <div class="text-xl md:text-2xl font-bold ${color}">${item.gap>0?'+':''}${item.gap.toFixed(2)}</div>
-                        </div>
-                        ` : ''}
-                    </div>
-                </div>`;
-                container.innerHTML += html;
-            });
+        function downloadTemplate() {
+            window.open(`https://docs.google.com/spreadsheets/d/1i3JGiJLDq3sXzrgSGzdO4qC3xmq_TcPY8ezTHimeVGc/edit?usp=sharing`, '_blank');
         }
         
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            if(file.name.endsWith('.xlsx')) {
+                reader.readAsArrayBuffer(file);
+                reader.onload = e => {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+                    const processed = parseExcelFixedColumns(rows);
+                    if(processed.length === 0) return alert("รูปแบบไฟล์ไม่ถูกต้อง");
+                    db = enrichData(processed);
+                    document.getElementById('statusBadge').innerHTML = `<span class="text-blue-400">📂 ไฟล์ส่วนตัว</span>`;
+                    runFilter();
+                };
+            }
+        }
+
         init();
     </script>
 </body>
